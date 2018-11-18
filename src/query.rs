@@ -450,12 +450,12 @@ impl Query {
                 .chain_err(|| format!("cannot find tx {}", txid))?
             )
         } else {
-            // fetch from bitcoind
-            let blockhash = match blockhash {
-                Some(x) => Some(*x),
+            let blockhash_from_index: Option<Sha256dHash> = match blockhash {
+                Some(_) => None,  // block hash is specified, don't use index for lookup
                 None => self.lookup_confirmed_blockhash(txid, None)?,
             };
-            let tx_val = self.app.daemon().gettransaction_raw(txid, blockhash.as_ref(), false)?;
+            let blockhash: Option<&Sha256dHash> = blockhash.or(blockhash_from_index.as_ref());
+            let tx_val = self.app.daemon().gettransaction_raw(txid, blockhash, false)?;
             Ok(::hex::decode(tx_val.as_str().chain_err(|| "non-string tx hex")?).chain_err(|| "invalid hex")?)
         }
     }
