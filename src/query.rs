@@ -128,7 +128,7 @@ fn txrow_by_txid(store: &ReadStore, txid: &Sha256dHash) -> Option<TxRow> {
     Some(TxRow::from_row(&Row { key, value }))
 }
 
-fn txrows_by_prefix(store: &ReadStore, txid_prefix: &HashPrefix) -> Vec<TxRow> {
+pub fn txrows_by_prefix(store: &ReadStore, txid_prefix: &HashPrefix) -> Vec<TxRow> {
     store
         .scan(&TxRow::filter_prefix(&txid_prefix))
         .iter()

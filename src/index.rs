@@ -69,12 +69,12 @@ impl TxInRow {
 #[derive(Serialize, Deserialize)]
 pub struct TxOutKey {
     code: u8,
-    script_hash_prefix: HashPrefix,
+    pub script_hash_prefix: HashPrefix,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct TxOutRow {
-    key: TxOutKey,
+    pub key: TxOutKey,
     pub txid_prefix: HashPrefix,
 }
 
@@ -108,12 +108,13 @@ impl TxOutRow {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TxKey {
     code: u8,
     pub txid: FullHash,
 }
 
+#[derive(Debug)]
 pub struct TxRow {
     pub key: TxKey,
     pub height: u32, // value
