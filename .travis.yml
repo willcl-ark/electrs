@@ -5,11 +5,15 @@ rust:
 
 cache: cargo
 
+env:
+  - FEATURE=default  # BTC
+  - FEATURE=liquid
+
 before_script:
   - rustup component add rustfmt-preview
 
 script:
   - cargo fmt --all -- --check
-  - cargo check --all
-  - cargo build --all
-  - cargo test --all
+  - cargo check --all --feature $FEATURE
+  - cargo build --all --feature $FEATURE
+  - cargo test --all --feature $FEATURE

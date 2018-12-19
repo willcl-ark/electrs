@@ -3,7 +3,6 @@ use bitcoin::network::constants::Network;
 use bitcoin::util::address::Address;
 use bitcoin::util::hash::{HexError, Sha256dHash};
 use bitcoin::{BitcoinHash, Script};
-use bitcoin::{Transaction, TxIn, TxOut};
 use config::Config;
 use errors;
 use hex::{self, FromHexError};
@@ -20,6 +19,8 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
+
+use chain::{Transaction, TxIn, TxOut};
 use util::{
     full_hash, get_script_asm, script_to_address, BlockHeaderMeta, FullHash, TransactionStatus,
 };

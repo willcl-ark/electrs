@@ -1,4 +1,3 @@
-use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::util::hash::Sha256dHash;
 use hex;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -6,6 +5,7 @@ use std::iter::FromIterator;
 use std::ops::Bound;
 use std::sync::Mutex;
 
+use chain::Transaction;
 use daemon::{Daemon, MempoolEntry};
 use index::index_transaction;
 use metrics::{Gauge, GaugeVec, HistogramOpts, HistogramTimer, HistogramVec, MetricOpts, Metrics};

@@ -1,4 +1,3 @@
-use bitcoin::blockdata::block::Block;
 use bitcoin::consensus::encode::{deserialize, Decodable};
 use bitcoin::util::hash::{BitcoinHash, Sha256dHash};
 use libc;
@@ -12,6 +11,7 @@ use std::sync::{
 };
 use std::thread;
 
+use chain::Block;
 use config::Config;
 use daemon::Daemon;
 use index::{index_block, last_indexed_block, read_indexed_blockhashes};

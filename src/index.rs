@@ -1,6 +1,4 @@
 use bincode;
-use bitcoin::blockdata::block::{Block, BlockHeader};
-use bitcoin::blockdata::transaction::{Transaction, TxIn, TxOut};
 use bitcoin::consensus::encode::{deserialize, serialize};
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::util::hash::Sha256dHash;
@@ -10,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::sync::RwLock;
 
+use chain::{Block, BlockHeader, Transaction, TxIn, TxOut};
 use daemon::Daemon;
 use metrics::{Counter, Gauge, HistogramOpts, HistogramTimer, HistogramVec, MetricOpts, Metrics};
 use signal::Waiter;

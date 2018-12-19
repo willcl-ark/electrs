@@ -40,8 +40,12 @@ extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
 
+#[cfg(feature = "liquid")]
+extern crate elements;
+
 pub mod app;
 pub mod bulk;
+pub mod chain;
 pub mod config;
 pub mod daemon;
 pub mod errors;

@@ -1,8 +1,7 @@
 use bincode;
-use bitcoin::blockdata::block::Block;
-use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode::{deserialize, serialize};
 use bitcoin::util::hash::Sha256dHash;
+use chain::{Block, Transaction};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, RwLock};
 
