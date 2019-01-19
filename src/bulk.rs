@@ -111,7 +111,7 @@ impl Parser {
     }
 }
 
-fn parse_blocks(blob: Vec<u8>, magic: u32) -> Result<Vec<Block>> {
+pub fn parse_blocks(blob: Vec<u8>, magic: u32) -> Result<Vec<Block>> {
     let mut cursor = Cursor::new(&blob);
     let mut blocks = vec![];
     let max_pos = blob.len() as u64;
