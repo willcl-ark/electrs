@@ -116,11 +116,12 @@ fn parse_blocks(blob: Vec<u8>, magic: u32) -> Result<Vec<Block>> {
     let mut blocks = vec![];
     let max_pos = blob.len() as u64;
     while cursor.position() < max_pos {
+        let pos = cursor.position();
         match u32::consensus_decode(&mut cursor) {
             Ok(value) => {
                 if magic != value {
                     cursor
-                        .seek(SeekFrom::Current(-3))
+                        .seek(SeekFrom::Start(pos + 1))
                         .expect("failed to seek back");
                     continue;
                 }
@@ -134,8 +135,22 @@ fn parse_blocks(blob: Vec<u8>, magic: u32) -> Result<Vec<Block>> {
             .chain_err(|| format!("seek {} failed", block_size))?;
         let end = cursor.position() as usize;
 
-        let block: Block = deserialize(&blob[start..end])
-            .chain_err(|| format!("failed to parse block at {}..{}", start, end))?;
+        let block: Block = match deserialize(&blob[start..end]) {
+            Ok(block) => block,
+            Err(err) => {
+                error!(
+                    "invalid block at {}..{} ({} bytes): {}",
+                    start,
+                    end,
+                    end - start,
+                    err
+                );
+                cursor
+                    .seek(SeekFrom::Start(pos + 1))
+                    .expect("failed to seek back");
+                continue;
+            }
+        };
         blocks.push(block);
     }
     Ok(blocks)
