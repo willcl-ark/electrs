@@ -374,6 +374,23 @@ impl Query {
         Ok(blockhash)
     }
 
+    pub fn compute_tx_fee(&self, txid: &Sha256dHash) -> Result<i64> {
+        let tx = self.load_txn(txid, None)?;
+        let output: i64 = tx.output.iter().map(|txo| txo.value as i64).sum();
+        let input = tx
+            .input
+            .iter()
+            .map(|txi| {
+                self.load_txn(&txi.previous_output.txid, None)?
+                    .output
+                    .get(txi.previous_output.vout as usize)
+                    .map(|txo| txo.value as i64)
+                    .chain_err(|| format!("missing txo {:?}", txi.previous_output))
+            })
+            .collect::<Result<Vec<i64>>>()?;
+        Ok(input.iter().sum::<i64>() - output)
+    }
+
     // Internal API for transaction retrieval
     fn load_txn(&self, txid: &Sha256dHash, block_height: Option<u32>) -> Result<Transaction> {
         self.tx_cache.get_or_else(&txid, || {

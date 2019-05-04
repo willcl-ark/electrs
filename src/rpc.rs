@@ -221,7 +221,12 @@ impl Connection {
             status
                 .history()
                 .into_iter()
-                .map(|item| json!({"height": item.0, "tx_hash": item.1.to_hex()}))
+                .map(|item| {
+                    let height = item.0;
+                    let txid = item.1;
+                    let fee = self.query.compute_tx_fee(&txid).ok();
+                    json!({"height": height, "tx_hash": txid.to_hex(), "fee": fee})
+                })
                 .collect()
         )))
     }
