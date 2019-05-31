@@ -13,7 +13,10 @@ use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Lines, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
+};
 use std::time::Duration;
 
 use crate::errors::*;
@@ -272,9 +275,7 @@ struct Counter {
 
 impl Counter {
     fn new() -> Self {
-        Counter {
-            value: 0.into(),
-        }
+        Counter { value: 0.into() }
     }
 
     fn next(&self) -> u64 {
