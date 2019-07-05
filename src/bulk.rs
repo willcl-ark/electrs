@@ -115,7 +115,7 @@ impl Parser {
     }
 }
 
-fn parse_blocks(blob: Vec<u8>, magic: u32) -> Result<Vec<Block>> {
+pub fn parse_blocks(blob: Vec<u8>, magic: u32) -> Result<Vec<Block>> {
     let mut cursor = Cursor::new(&blob);
     let mut blocks = vec![];
     let max_pos = blob.len() as u64;
@@ -124,6 +124,7 @@ fn parse_blocks(blob: Vec<u8>, magic: u32) -> Result<Vec<Block>> {
         match u32::consensus_decode(&mut cursor) {
             Ok(value) => {
                 if magic != value {
+                    warn!("incorrect magic");
                     cursor.set_position(offset + 1);
                     continue;
                 }
@@ -141,12 +142,14 @@ fn parse_blocks(blob: Vec<u8>, magic: u32) -> Result<Vec<Block>> {
         match u32::consensus_decode(&mut cursor) {
             Ok(value) => {
                 if magic == value {
+                    warn!("magic instead of version");
                     cursor.set_position(start);
                     continue;
                 }
             }
             Err(_) => break, // EOF
         }
+        trace!("parsing block [{},{}) = {} bytes", start, end, block_size);
         let block: Block = deserialize(&blob[start as usize..end as usize])
             .chain_err(|| format!("failed to parse block at {}..{}", start, end))?;
         blocks.push(block);
