@@ -35,6 +35,7 @@ libc = "0.2"
 log = "0.4"
 lru = "0.6.1"
 num_cpus = "1.0"
+maplit = "1.0.2"
 page_size = "0.4"
 prometheus = "0.10"
 protobuf = "= 2.14.0"   # https://github.com/stepancheg/rust-protobuf/blob/master/CHANGELOG.md#2150---2020-06-21
