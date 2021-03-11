@@ -14,6 +14,7 @@ use std::thread;
 use crate::errors::*;
 use crate::metrics::{Gauge, HistogramOpts, HistogramVec, MetricOpts, Metrics};
 use crate::query::{Query, Status};
+extern crate serde_cbor;
 use crate::util::{spawn_thread, Channel, HeaderEntry};
 
 const ELECTRS_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -77,6 +78,7 @@ struct Connection {
     sender: SyncSender<Message>,
     stats: Arc<Stats>,
     relayfee: f64,
+	cbor: bool,
 }
 
 impl Connection {
@@ -97,6 +99,7 @@ impl Connection {
             sender,
             stats,
             relayfee,
+            cbor: true,
         }
     }
 
@@ -409,11 +412,25 @@ impl Connection {
     }
 
     fn send_values(&mut self, values: &[Value]) -> Result<()> {
-        for value in values {
-            let line = value.to_string() + "\n";
-            self.stream
-                .write_all(line.as_bytes())
-                .chain_err(|| format!("failed to send {}", value))?;
+		match &self.cbor {
+            true => {
+                for value in values {
+                    // Convert from JSON to CBOR
+                    let cbor_value = serde_cbor::to_vec(value);
+                    match cbor_value {
+                        Ok(val) => self.stream.write_all(&*val).unwrap(),
+                        Err(_) => (),
+                    }
+                }
+            }
+            false => {
+                for value in values {
+                    let line = value.to_string() + "\n";
+                    self.stream
+                        .write_all(line.as_bytes())
+                        .chain_err(|| format!("failed to send {}", value))?;
+                }
+            }
         }
         Ok(())
     }
