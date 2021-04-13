@@ -367,6 +367,7 @@ dependencies = [
  "libc",
  "log",
  "lru",
+ "maplit",
  "num_cpus",
  "page_size",
  "prometheus",
@@ -657,6 +658,12 @@ checksum = "ccbbb1d623a3cbcaeef9a072f7ccbd6f8ca1e788f3e301d5c49bdd67b1f5a942"
 dependencies = [
  "roff",
 ]
+
+[[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "matches"
