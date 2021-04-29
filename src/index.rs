@@ -8,17 +8,21 @@ use crate::{
     chain::Chain,
     daemon::Daemon,
     db,
-    metrics::{Histogram, Metrics},
     types::{HeaderRow, ScriptHash, ScriptHashRow, SpendingPrefixRow, TxidRow},
 };
 
+#[cfg(feature = "process")]
+use crate::metrics::{Histogram, Metrics};
+
 #[derive(Clone)]
+#[cfg(feature = "process")]
 struct Stats {
     update_duration: Histogram,
     update_size: Histogram,
     lookup_duration: Histogram,
 }
 
+#[cfg(feature = "metrics")]
 impl Stats {
     fn new(metrics: &Metrics) -> Self {
         Self {
@@ -84,10 +88,12 @@ impl IndexResult {
 pub struct Index {
     store: db::DBStore,
     chain: Chain,
+    #[cfg(feature = "metrics")]
     stats: Stats,
 }
 
 impl Index {
+    #[cfg(feature = "metrics")]
     pub(crate) fn load(store: db::DBStore, mut chain: Chain, metrics: &Metrics) -> Result<Self> {
         if let Some(row) = store.get_tip() {
             let tip = deserialize(&row).expect("invalid tip");
@@ -103,6 +109,24 @@ impl Index {
             store,
             chain,
             stats: Stats::new(metrics),
+        })
+    }
+
+    #[cfg(not(feature = "metrics"))]
+    pub(crate) fn load(store: db::DBStore, mut chain: Chain) -> Result<Self> {
+        if let Some(row) = store.get_tip() {
+            let tip = deserialize(&row).expect("invalid tip");
+            let headers = store
+                .read_headers()
+                .into_iter()
+                .map(|row| HeaderRow::from_db_row(&row).header)
+                .collect();
+            chain.load(headers, tip);
+        };
+
+        Ok(Index {
+            store,
+            chain,
         })
     }
 
@@ -163,6 +187,7 @@ impl Index {
                 })?;
                 assert!(heights_map.is_empty(), "some blocks were not indexed");
                 batch.sort();
+                #[cfg(feature = "metrics")]
                 self.stats.report_stats(&batch);
                 self.store.write(batch);
             }

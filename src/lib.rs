@@ -18,6 +18,7 @@ mod electrum;
 mod index;
 mod mempool;
 mod merkle;
+#[cfg(feature = "metrics")]
 mod metrics;
 pub mod server;
 mod signals;

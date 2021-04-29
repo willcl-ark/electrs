@@ -13,19 +13,24 @@ use crate::{
     db::DBStore,
     index::Index,
     mempool::{Histogram, Mempool},
-    metrics::Metrics,
     status::Status,
 };
+
+#[cfg(feature = "metrics")]
+use crate::metrics::Metrics;
+
 
 /// Electrum protocol subscriptions' tracker
 pub struct Tracker {
     index: Index,
     mempool: Mempool,
+    #[cfg(feature = "metrics")]
     metrics: Metrics,
     index_batch_size: usize,
 }
 
 impl Tracker {
+    #[cfg(feature = "metrics")]
     pub fn new(config: &Config) -> Result<Self> {
         let metrics = Metrics::new(config.monitoring_addr)?;
         let store = DBStore::open(Path::new(&config.db_path))?;
@@ -38,6 +43,17 @@ impl Tracker {
         })
     }
 
+    #[cfg(not(feature = "metrics"))]
+    pub fn new(config: &Config) -> Result<Self> {
+        let store = DBStore::open(Path::new(&config.db_path))?;
+        let chain = Chain::new(config.network);
+        Ok(Self {
+            index: Index::load(store, chain).context("failed to open index")?,
+            mempool: Mempool::new(),
+            index_batch_size: config.index_batch_size,
+        })
+    }
+
     pub(crate) fn chain(&self) -> &Chain {
         self.index.chain()
     }
@@ -46,6 +62,7 @@ impl Tracker {
         &self.mempool.fees_histogram()
     }
 
+    #[cfg(feature = "metrics")]
     pub(crate) fn metrics(&self) -> &Metrics {
         &self.metrics
     }

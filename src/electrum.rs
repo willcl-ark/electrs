@@ -12,9 +12,12 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 
 use crate::{
-    cache::Cache, config::Config, daemon::Daemon, merkle::Proof, metrics::Histogram,
+    cache::Cache, config::Config, daemon::Daemon, merkle::Proof,
     status::Status, tracker::Tracker, types::ScriptHash,
 };
+#[cfg(feature = "metrics")]
+use crate::metrics::Histogram;
+
 
 const ELECTRS_VERSION: &str = env!("CARGO_PKG_VERSION");
 const PROTOCOL_VERSION: &str = "1.4";
@@ -65,12 +68,14 @@ impl From<TxGetArgs> for (Txid, bool) {
 pub struct Rpc {
     tracker: Tracker,
     cache: Cache,
+    #[cfg(feature = "metrics")]
     rpc_duration: Histogram,
     daemon: Daemon,
     banner: String,
 }
 
 impl Rpc {
+    #[cfg(feature = "metrics")]
     pub fn new(config: &Config, tracker: Tracker) -> Result<Self> {
         let rpc_duration = tracker.metrics().histogram_vec(
             "rpc_duration",
@@ -81,6 +86,16 @@ impl Rpc {
             tracker,
             cache: Cache::new(),
             rpc_duration,
+            daemon: Daemon::connect(&config)?,
+            banner: config.server_banner.clone(),
+        })
+    }
+
+    #[cfg(not(feature = "metrics"))]
+    pub fn new(config: &Config, tracker: Tracker) -> Result<Self> {
+        Ok(Self {
+            tracker,
+            cache: Cache::new(),
             daemon: Daemon::connect(&config)?,
             banner: config.server_banner.clone(),
         })
@@ -126,6 +141,18 @@ impl Rpc {
         Ok(notifications)
     }
 
+    #[cfg(feature = "metrics")]
+    fn run_request<F>(&self, method: &String, func: F) -> Result<Value> where
+        F: FnOnce(&String) -> Result<Value> {
+        self.rpc_duration.observe_duration(&method, func(method))
+    }
+
+    #[cfg(not(feature = "metrics"))]
+    fn run_request<F>(&self, method: &String, func: F) -> Result<Value> where
+        F: FnOnce(&String) -> Result<Value> {
+        func(method)
+    }
+
     pub fn handle_request(&self, client: &mut Client, value: Value) -> Result<Value> {
         let Request {
             id,
@@ -133,7 +160,7 @@ impl Rpc {
             method,
             params,
         } = from_value(value).context("invalid request")?;
-        self.rpc_duration.observe_duration(&method, || {
+		let method_closure = |method: &String| {
             let result = match method.as_str() {
                 "blockchain.scripthash.get_history" => {
                     self.scripthash_get_history(client, from_value(params)?)
@@ -161,7 +188,6 @@ impl Rpc {
                 "server.version" => self.version(from_value(params)?),
                 &_ => bail!("unknown method '{}' with {}", method, params,),
             };
-
             Ok(match result {
                 Ok(value) => json!({"jsonrpc": jsonrpc, "id": id, "result": value}),
                 Err(err) => {
@@ -171,7 +197,8 @@ impl Rpc {
                     json!({"jsonrpc": jsonrpc, "id": id, "error": error})
                 }
             })
-        })
+        };
+		self.run_request(&method, method_closure)
     }
 
     fn headers_subscribe(&self, client: &mut Client) -> Result<Value> {
