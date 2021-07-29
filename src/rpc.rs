@@ -3,7 +3,7 @@ use bitcoin::consensus::encode::{deserialize, serialize};
 use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::hashes::{sha256d::Hash as Sha256dHash, Hash};
 use error_chain::ChainedError;
-use serde_cbor::{de, to_vec, Value};
+use serde_cbor::{de, value::from_value, to_vec, Value, Value::Array};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, BTreeMap};
 use std::io::{BufRead, BufReader, Write};
@@ -60,7 +60,7 @@ impl Connection {
     //     Ok(result)
     // }
 
-    fn server_version(&self, params: &[serde_json::value::Value]) -> Result<serde_cbor::Value> {
+    fn server_version(&self, params: &[serde_cbor::value::Value]) -> Result<Value> {
         if params.len() != 2 {
             bail!("invalid params: {:?}", params);
         }
@@ -256,7 +256,7 @@ impl Connection {
     //         "merkle" : merkle_vec}))
     // }
 
-    fn handle_command(&mut self, method: &str, params: &[serde_json::Value], id: &serde_json::Value) -> serde_cbor::Result<Value> {
+    fn handle_command(&mut self, method: &str, params: &[serde_cbor::Value], id: &serde_cbor::Value) -> serde_cbor::Result<Value> {
         let timer = self
             .stats
             .latency
@@ -294,8 +294,9 @@ impl Connection {
         Ok(match result {
             Ok(result) => {
                 let map: BTreeMap<Value, Value> = btreemap! {
-                    Value::from("id".to_string()) => Value::from(id.to_string()),
-                    Value::from("result".to_string()) => result,
+                    Value::from("cborrpc".to_string()) => Value::from("0.1".to_string()),
+                    Value::from("id".to_string()) => id.clone(),
+                    Value::from("result".to_string()) => result.clone() ,
                 };
                 Value::from(map)
             }
@@ -307,9 +308,10 @@ impl Connection {
                     params,
                     e.display_chain()
                 );
-                let map = btreemap! {
-                    Value::from("id".to_string()) => Value::from(id.to_string()),
-                    Value::from("error".to_string()) => Value::from(format!("{}", e).to_string()),
+                let map: BTreeMap<Value, Value> = btreemap! {
+                    Value::from("cborrpc".to_string()) => Value::from("0.01".to_string()),
+                    Value::from("id".to_string()) => id.clone(),
+                    Value::from("error".to_string()) => Value::from(format!("{}", e).to_string()) ,
                 };
                 Value::from(map)
             }
@@ -327,24 +329,23 @@ impl Connection {
     }
 
     fn handle_replies(&mut self, receiver: Receiver<Message>) -> Result<()> {
-        let empty_params = json![[]];
+        let empty_params = Value::Array([].to_vec());
         loop {
             let msg = receiver.recv().chain_err(|| "channel closed")?;
             trace!("RPC {:?}", msg);
             match msg {
-                Message::Request(line) => {
-                    let cmd: serde_json::Value = serde_json::from_str(&line).chain_err(|| "invalid JSON format")?;
+                Message::Request(cmd) => {
                     let reply = match (
-                        cmd.get("method"),
-                        cmd.get("params").unwrap_or_else(|| &empty_params),
-                        cmd.get("id"),
+                        cmd.get(&Value::Text(String::from("method"))),
+                        cmd.get(&Value::Text(String::from("params"))).unwrap_or_else(|| &empty_params),
+                        cmd.get(&Value::Text(String::from("id"))),
                     ) {
                         (
-                            Some(&serde_json::Value::String(ref method)),
-                            &serde_json::Value::Array(ref params),
+                            Some(&Value::Text(ref method)),
+                            &Value::Array(ref params),
                             Some(ref id),
-                        ) => self.handle_command(method, params, id).unwrap(),
-                        _ => bail!("invalid command: {}", cmd),
+                        ) => self.handle_command(&method, &params, &id).unwrap(),
+                        _ => bail!("invalid command: {:?}", cmd),
                     };
                     self.send_values(&[reply])?
                 }
@@ -356,15 +357,24 @@ impl Connection {
 
     fn parse_requests(mut reader: BufReader<TcpStream>, tx: SyncSender<Message>) -> Result<()> {
         loop {
-            // Read a cbor value from a reader
-			let request: BTreeMap<Value, Value> = serde_cbor::from_reader(&reader)?;
-            if request.is_empty() {
+            //Read a cbor value from a reader
+            let mut line = Vec::<u8>::new();
+            reader
+                .read_until(b'\n', &mut line)
+                .chain_err(|| "failed to read a request")?;
+            if line.is_empty() {
                 tx.send(Message::Done).chain_err(|| "channel closed")?;
                 return Ok(());
             } else {
-                match request {
-                    Ok(request) => tx
-                        .send(Message::Request(request.get(&Value::from("request"))))
+                if line.starts_with(&[22, 3, 1]) {
+                    // (very) naive SSL handshake detection
+                    let _ = tx.send(Message::Done);
+                    bail!("invalid request - maybe SSL-encrypted data?: {:?}", line)
+                }
+                //match String::from_utf8(line) {
+                match serde_cbor::from_slice(&line).chain_err(|| "invalid CBOR format") {
+                    Ok(req) => tx
+                        .send(Message::Request(req))
                         .chain_err(|| "channel closed")?,
                     Err(err) => {
                         let _ = tx.send(Message::Done);
@@ -422,7 +432,7 @@ impl Connection {
 
 #[derive(Debug)]
 pub enum Message {
-    Request(Value),
+    Request(BTreeMap<Value, Value>),
     PeriodicUpdate,
     Done,
 }
